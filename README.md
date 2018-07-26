@@ -12,4 +12,4 @@ Use 'PyInstaller --onefile frames.py'
 
 If you run into ImportError in relation to np_datetime from the pandas library, add a file named hook-pandas.py to the PyInstaller/hooks directory. This file only contains one line and can be found in this repository.
 
-If your error is specific to np_timedeltas, change 'pandas._libs.tslibs.np_datetime' to 'pandas._libs.tslibs.np_timedeltas'
+If your error is specific to np_timedeltas, change 'pandas._libs.tslibs.np_datetime' to 'pandas._libs.tslibs.np_timedeltas' inside the hook-pandas.py file
