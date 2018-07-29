@@ -45,7 +45,7 @@ def singleReplace(old_term, new_term, file_type, path_to_directory):
 # sheetname	in a directory of one or more files			
 def excelReplace(path_to_excel, column_name_old, column_name_new, shName, file_type, path_to_directory):
 
-	df = pd.read_excel(path_to_excel, sheet_name=sheetName)
+	df = pd.read_excel(path_to_excel, sheet_name=shName)
 	List_Old_Tags = df[column_name_old]
 	List_New_Tags = df[column_name_new].fillna("{[Empty]}")
 	sortedZip = sorted(itertools.izip_longest(List_Old_Tags, List_New_Tags, fillvalue="{[Empty]}"), key=lambda oldTag: len(str(oldTag[0])))[::-1]
