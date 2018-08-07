@@ -1,21 +1,29 @@
 from Tkinter import *
 import tkinter.ttk
 import tkMessageBox
+import fnmatch
 import itertools
 import re
-import shutil
 import os
 import sys
 import fileinput
-import time
 import pandas as pd
+import Queue
 from pandas import ExcelFile
+import threading
+import time
+import random
+from threading import Thread
+import functools
 
+def updateUI(x, file_count):
+	pbText.set("Files completed: " + str(x) + "/" + str(file_count))
+	app.update_idletasks()
+	app.update()
 
-# Function to find and replace one specific term in 
-# a directory of one or more files
 def singleReplace(old_term, new_term, file_type, path_to_directory):
 	frame_pb.start()
+	x = 0
 	os.chdir(path_to_directory.encode('string-escape'))
 	foundList=[]
 	for root, dir, files in os.walk(path_to_directory.encode('string-escape')):
@@ -51,6 +59,8 @@ def singleReplace(old_term, new_term, file_type, path_to_directory):
 					pass
 			else:
 				pass
+			x = x + 1
+			updateUI(x, len(os.listdir(path_to_directory.encode('string-escape'))))
 	if not foundList:
 		tkMessageBox.showinfo("Alert", "Search term not found in files")
 	else:
@@ -58,12 +68,12 @@ def singleReplace(old_term, new_term, file_type, path_to_directory):
 	frame_pb.stop()
 	del foundList[:]
 
-
 # Function to find and replace a set of
 # terms specified from an Excel workbook and
 # sheetname	in a directory of one or more files			
 def excelReplace(path_to_excel, column_name_old, column_name_new, shName, file_type, path_to_directory):
 	frame_pb.start()
+	x = 0
 	df = pd.read_excel(path_to_excel.encode('string-escape'), sheet_name=shName)
 	List_Old_Tags = df[column_name_old]
 	List_New_Tags = df[column_name_new].fillna("{[Empty]}")
@@ -71,7 +81,6 @@ def excelReplace(path_to_excel, column_name_old, column_name_new, shName, file_t
 	os.chdir(path_to_directory.encode('string-escape'))
 	# Used to update user on files completed
 	foundList=[]
-	x = 0
 	for root, dir, files in os.walk(path_to_directory.encode('string-escape')):	
 		for file in files:
 			if file.endswith(file_type):
@@ -107,9 +116,10 @@ def excelReplace(path_to_excel, column_name_old, column_name_new, shName, file_t
 									pass
 							else:
 								pass
-					x = x + 1
 			else:
 				pass
+			x = x + 1
+			updateUI(x, len(os.listdir(path_to_directory.encode('string-escape'))))
 		else:
 			pass
 	if not foundList:
@@ -118,14 +128,14 @@ def excelReplace(path_to_excel, column_name_old, column_name_new, shName, file_t
 		tkMessageBox.showinfo("Results", "See file 'excel_log_file.txt' for results.")
 	frame_pb.stop()
 	del foundList[:]
-
-			
+		
 # Function to find one specific term in a directory of
 # one or more files
 def find(searchTerm, file_type, path_to_directory):
 	frame_pb.start()
 	foundList=[]
 	os.chdir(path_to_directory.encode('string-escape'))
+	x = 0
 	for root, dir, files in os.walk(path_to_directory.encode('string-escape')):
 		for file in files:
 			if file.endswith(file_type):
@@ -150,14 +160,14 @@ def find(searchTerm, file_type, path_to_directory):
 					pass
 			else:
 				pass
-	#TODO: Give user a prompt with results of search
+			x = x + 1
+			updateUI(x, len(os.listdir(path_to_directory.encode('string-escape'))))
 	if not foundList:
 		tkMessageBox.showinfo("Alert", str(searchTerm) + " not found in files")
 	else:
 		tkMessageBox.showinfo("Results", "See file 'find_log_file.txt' for results.")
 	frame_pb.stop()		
 	del foundList[:]
-	
 	
 # Function to determine which Find or Find & Replace function to call
 # No parameters, variables are initialized inside based on the option selected
@@ -267,7 +277,6 @@ def determineFunction():
 			drivePath3.set("")
 			workbookEntryText.set("")
 			app.mainloop()
-		
 		# Delete to avoid memory leaks
 		del variableList[:]
 		del emptyVariableList[:]
@@ -276,8 +285,7 @@ def determineFunction():
 	else:
 		tkMessageBox.showinfo("Error", "No function specified, please select from the top 3 options.")
 		app.mainloop()
-		
-		
+			
 def reset():
 	replaceStatus.set(None)
 	drivePath1.set("")
@@ -294,142 +302,106 @@ def reset():
 	newColumnName.set("")
 	fileStatus3.set("")
 	app.mainloop()
-		
-		
 
+				
 app = Tk()
 app.title("Find & Replace: Saginaw Power & Automation")
 app.geometry("925x450")
-
 topLeftFrame = Frame(app, width=300, height=250, highlightcolor="black")
 topLeftFrame.grid(row=0, column=0)
 topMiddleFrame = Frame(app, width=300, height=250)
 topMiddleFrame.grid(row=0, column=1)
-
 topRightFrame = Frame(app, width=300, height=250)
 topRightFrame.grid(row=0, column=2)
-
 leftFrame = Frame(app, width=300, height=250)
 leftFrame.grid(row=1, column=0)
-
 middleFrame = Frame(app, width=300, height = 250)
 middleFrame.grid(row=1, column=1, padx=50, pady=0)
-
 rightFrame = Frame(app, width=300, height=250)
 rightFrame.grid(row=1, column=2, padx=0, pady=25)
-
 buttonFrame = Frame(app, width=300, height=250)
 buttonFrame.grid(row=2, column=1)
-
 bottomFrame = Frame(app, width=300, height=250)
-bottomFrame.grid(row=3, column=1)
-
-#######Left Middle Frame	
+bottomFrame.grid(row=3, column=1)	
 replaceStatus = StringVar()
 replaceStatus.set(None)
 radio10 = Radiobutton(topLeftFrame, text="Single Find", value="Find", variable=replaceStatus).pack()
-
 driveText1 = StringVar()
 driveText1.set("Enter Path\\to\\Directory:")
 driveLabel1 = Label(leftFrame, textvariable=driveText1).pack()
 drivePath1 = StringVar()
 driveEntry1 = Entry(leftFrame, textvariable=drivePath1).pack()
-
 stringText1 = StringVar()
 stringText1.set("Enter string to find: ")
 stringLabel1 = Label(leftFrame, textvariable=stringText1).pack()
 stringFind = StringVar()
 stringFindEntry = Entry(leftFrame, textvariable=stringFind).pack()
-	
 fileText1 = StringVar()
 fileText1.set("Enter file ext of files to be searched (.xml, .txt, etc.): ")
 fileLabel1 = Label(leftFrame, textvariable=fileText1).pack()
 fileStatus1 = StringVar()
 fileStatusEntry1 = Entry(leftFrame, textvariable=fileStatus1).pack()
-#######Left Middle Frame
-#######Middle Frame
 radio10 = Radiobutton(topMiddleFrame, text="Single Replace", value="SingleReplace", variable=replaceStatus).pack()
-
 driveText2 = StringVar()
 driveText2.set("Enter Path\\to\\Directory:")
 driveLabel2 = Label(middleFrame, textvariable=driveText2).pack()
 drivePath2 = StringVar()
 driveEntry2 = Entry(middleFrame, textvariable=drivePath2).pack()
-
 stringText2 = StringVar()
 stringText2.set("Enter string to find: ")
 stringLabel2 = Label(middleFrame, textvariable=stringText2).pack()
 stringVal = StringVar()
 stringEntry1 = Entry(middleFrame, textvariable=stringVal).pack()
-
 stringText3 = StringVar()
 stringText3.set("Enter replacement string: ")
 stringLabel3 = Label(middleFrame, textvariable=stringText3).pack()
 stringVal2 = StringVar()
 stringEntry2 = Entry(middleFrame, textvariable=stringVal2).pack()
-
 fileText2 = StringVar()
 fileText2.set("Enter file ext of files to be searched (.xml, .txt, etc.): ")
 fileLabel2 = Label(middleFrame, textvariable=fileText2).pack()
 fileStatus2 = StringVar()
 fileStatusEntry2 = Entry(middleFrame, textvariable=fileStatus2).pack()
-#######Middle Frame
-#######Right Middle Frame
 radio10 = Radiobutton(topRightFrame, text="Excel Replace", value="ExcelReplace", variable=replaceStatus).pack()
-
 driveText3 = StringVar()
 driveText3.set("Enter Path\\to\\Directory:")
 driveLabel3 = Label(rightFrame, textvariable=driveText3).pack()
 drivePath3 = StringVar()
 driveEntry3 = Entry(rightFrame, textvariable=drivePath3).pack()
-
 workbookText = StringVar()
 workbookText.set("Enter 'Path\\to\\excelworkbook.xlsx':")
 workbookLabel = Label(rightFrame, textvariable=workbookText).pack()
 workbookEntryText = StringVar()
 workbookEntry = Entry(rightFrame, textvariable=workbookEntryText).pack()
-
 sheetText = StringVar()
 sheetText.set("Enter sheet name inside workbook: ")
 sheetLabel = Label(rightFrame, textvariable=sheetText).pack()
 sheetName = StringVar()
 sheetEntry = Entry(rightFrame, textvariable=sheetName).pack()
-
 oldColumnText = StringVar()
 oldColumnText.set("Enter the name of the column of old terms:")
 oldColumnLabel = Label(rightFrame, textvariable=oldColumnText).pack()
-
 oldColumnName = StringVar()
 oldColumnEntry = Entry(rightFrame, textvariable=oldColumnName).pack()
-
 newColumnText = StringVar()
 newColumnText.set("Enter the name of the column of new terms:")
 newColumnLabel = Label(rightFrame, textvariable=newColumnText).pack()
-
 newColumnName = StringVar()
 newColumnEntry = Entry(rightFrame, textvariable=newColumnName).pack()
-
 fileText3 = StringVar()
 fileText3.set("Enter file ext of files to be searched (.xml, .txt, etc.): ")
 fileLabel3 = Label(rightFrame, textvariable=fileText3).pack()
 fileStatus3 = StringVar()
 fileStatusEntry3 = Entry(rightFrame, textvariable=fileStatus3).pack()
-#######Right Middle Frame
-#######Button Frame
 button1 = Button(buttonFrame, text="Submit", width=20, command=determineFunction).grid(row=0, column=0, padx=0, pady=25)
 button2 = Button(buttonFrame, text="Reset", width=20, command=reset).grid(row=0, column=1, padx=0, pady=25)
-
 pbText = StringVar()
 pbText.set("If this is moving, your task is in-progress")
 pbLabel = Label(bottomFrame, textvariable=pbText).pack()
 frame_pb = tkinter.ttk.Progressbar(bottomFrame, orient='horizontal', mode='indeterminate', maximum=100)
 frame_pb.pack()
-
-#######Button Frame
-# Create lines to separate different functions of app
 tkinter.ttk.Separator(app, orient=VERTICAL).grid(column=0, row=1, rowspan=1, sticky='nse')
 tkinter.ttk.Separator(app, orient=VERTICAL).grid(column=1, row=1, rowspan=1, sticky='nse')
 tkinter.ttk.Separator(app, orient=HORIZONTAL).grid(column=0, row=1, columnspan=3, sticky='wen')
 tkinter.ttk.Separator(app, orient=HORIZONTAL).grid(column=0, row=2, columnspan=3, sticky='wen')
-	
 app.mainloop()
